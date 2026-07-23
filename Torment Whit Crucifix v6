@@ -1,5 +1,5 @@
 -- ==========================================================
--- SCRIPT TORMENT - PARTE 1: CORE, LOGROS Y CRUCIFIJO CORREGIDO
+-- SCRIPT TORMENT - PARTE 1: CORE, LOGROS Y CRUCIFIJO
 -- ==========================================================
 local Players = game:GetService("Players")
 local CollectionService = game:GetService("CollectionService")
@@ -15,7 +15,7 @@ local ID_LOGRO_SOBREVIVIR = "rbxassetid://105719496569675"
 local ID_LOGRO_MORIR = "rbxassetid://96662874287445"
 local ID_LOGRO_CRUCIFIJO = "rbxassetid://85700739597718"
 
--- NUEVO AUDIO Y ASSETS DE CRUCIFICACIÓN
+-- ASSETS DE CRUCIFICACIÓN
 local AUDIO_CRUCIFIJO = "rbxassetid://115833319186798"
 local CIRCULO_SUELO_ID = "rbxassetid://12391880458"
 local CADENA_ID = "rbxassetid://88169127674752"
@@ -35,11 +35,11 @@ if puertaSpawn and puertaSpawn:IsA("Model") then
 end
 local posicionSpawn = puertaSpawn and puertaSpawn.CFrame or CFrame.new(0, 5, 0)
 
--- CREACIÓN DE TORMENT
+-- CREACIÓN DE TORMENT (BLOQUE TOTALMENTE INVISIBLE)
 local entidad = Instance.new("Part")
 entidad.Name = "IA_Rush_Torment"
 entidad.Size = TAMANO_ENTIDAD
-entidad.Transparency = 1
+entidad.Transparency = 1 -- Totalmente transparente
 entidad.Anchored = true
 entidad.CanCollide = false
 entidad.CFrame = posicionSpawn * CFrame.new(0, 3, 0)
@@ -151,7 +151,7 @@ local function buscarCrucifijo(personaje)
 	return nil
 end
 
--- EJECUTAR CINEMÁTICA DE CRUCIFICACIÓN (AUDIO 7s / IMAGEN Y CADENAS 8s)
+-- EJECUTAR CINEMÁTICA DE CRUCIFICACIÓN (BLOQUES INVISIBLES Y SINCRO EXACTA)
 local function crucificarTorment(personaje, crucifijo)
 	_G.B35_Shared.Crucificado = true
 	crucifijo:Destroy()
@@ -178,9 +178,10 @@ local function crucificarTorment(personaje, crucifijo)
 		posSuelo = resultadoRaycast.Position + Vector3.new(0, 0.05, 0)
 	end
 
+	-- CÍRCULO INVISIBLE (SOLO SE VE EL DECAL)
 	local circuloSuelo = Instance.new("Part")
 	circuloSuelo.Size = Vector3.new(12, 0.05, 12)
-	circuloSuelo.Transparency = 0
+	circuloSuelo.Transparency = 1
 	circuloSuelo.Anchored = true
 	circuloSuelo.CanCollide = false
 	circuloSuelo.CFrame = CFrame.new(posSuelo)
@@ -199,9 +200,10 @@ local function crucificarTorment(personaje, crucifijo)
 	local listaCadenas = {}
 
 	for _, angulo in ipairs(angulos) do
+		-- CADENAS INVISIBLES (SOLO SE VE EL DECAL)
 		local cadena = Instance.new("Part")
 		cadena.Size = Vector3.new(2, 10, 0.05)
-		cadena.Transparency = 0
+		cadena.Transparency = 1
 		cadena.Anchored = true
 		cadena.CanCollide = false
 		
@@ -217,7 +219,7 @@ local function crucificarTorment(personaje, crucifijo)
 		table.insert(listaCadenas, cadena)
 	end
 
-	-- PASO 1: SUBE LENTAMENTE (3.5 segundos)
+	-- ETAPA 1: SUBE (3.5 SEC)
 	local posArriba = entidad.CFrame * CFrame.new(0, 8, 0)
 	local tweenSubir = TweenService:Create(
 		entidad,
@@ -227,8 +229,8 @@ local function crucificarTorment(personaje, crucifijo)
 	tweenSubir:Play()
 	tweenSubir.Completed:Wait()
 
-	-- PASO 2: BAJA Y SE HUNDE (4.5 segundos -> Total 8s)
-	local posTragado = CFrame.new(posSuelo - Vector3.new(0, 18, 0))
+	-- ETAPA 2: BAJA Y SE HUNDE COMPLETAMENTE (4.5 SEC -> TOTAL 8s)
+	local posTragado = CFrame.new(posSuelo - Vector3.new(0, 20, 0))
 	local tweenBajar = TweenService:Create(
 		entidad,
 		TweenInfo.new(4.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
@@ -239,14 +241,14 @@ local function crucificarTorment(personaje, crucifijo)
 		TweenService:Create(
 			cad,
 			TweenInfo.new(4.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
-			{CFrame = cad.CFrame * CFrame.new(0, -18, 0)}
+			{CFrame = cad.CFrame * CFrame.new(0, -20, 0)}
 		):Play()
 	end
 
 	tweenBajar:Play()
-	tweenBajar.Completed:Wait() -- Espera a que termine la animación antes de borrar los objetos
+	tweenBajar.Completed:Wait()
 
-	-- LIMPIEZA FINAL AL COMPLETAR LOS 8 SEGUNDOS
+	-- ELIMINACIÓN DE ELEMENTOS
 	circuloSuelo:Destroy()
 	modeloCadenas:Destroy()
 	if entidad then entidad:Destroy() end
@@ -254,7 +256,7 @@ local function crucificarTorment(personaje, crucifijo)
 	mostrarLogro(ID_LOGRO_CRUCIFIJO)
 end
 
--- DETECTAR AGACHADO
+-- DETECTAR JUGADOR AGACHADO
 local function estaAgachado(personaje)
 	if not personaje then return false end
 	local hum = personaje:FindFirstChildOfClass("Humanoid")
@@ -314,7 +316,7 @@ task.spawn(function()
 
 				if distancia < 25 then
 					if estaProtegidoEnEsquina(personaje) then
-						-- A salvo en la esquina
+						-- A salvo
 					else
 						localPlayer:SetAttribute("AsesinadoPorTorment", true)
 						mostrarLogro(ID_LOGRO_MORIR)
@@ -428,7 +430,7 @@ task.spawn(function()
     if conexionTemblor then conexionTemblor:Disconnect() end
 end)
 -- ==========================================================
--- SCRIPT TORMENT - PARTE 3: MOVIMIENTO (2 PASADAS) Y SOBREVIVIR
+-- SCRIPT TORMENT - PARTE 3: MOVIMIENTO (2 PASADAS)
 -- ==========================================================
 local Players = game:GetService("Players")
 local localPlayer = Players.LocalPlayer
@@ -449,6 +451,7 @@ end
 
 local entidad = _G.B35_Shared.Entidad
 
+-- FUNCIÓN PARA APAGAR Y ROMPER LUCES DE LAS HABITACIONES
 local function romperLucesDeHabitaciones()
     for _, sala in ipairs(currentRooms:GetChildren()) do
         if tonumber(sala.Name) then
@@ -468,6 +471,7 @@ task.spawn(function()
     local pGui = localPlayer:WaitForChild("PlayerGui", 5)
 	local contenedorAudio = pGui or workspace.CurrentCamera
 
+	-- SONIDOS DE ADVERTENCIA
 	local sonidoAdv1 = Instance.new("Sound")
 	sonidoAdv1.SoundId = AUDIO_ADVERTENCIA_1; sonidoAdv1.Volume = 3; sonidoAdv1.Parent = contenedorAudio; sonidoAdv1:Play()
 	
@@ -485,6 +489,7 @@ task.spawn(function()
 
     -- EXACTAMENTE 2 PASADAS
     for pasada = 1, 2 do
+        -- SI YA FUE CRUCIFICADO, DETIENE EL BUCLE DE MOVIMIENTO
         if not entidad or not entidad.Parent or _G.B35_Shared.Crucificado then break end
 
         local function moverFisicamenteHacia(posicionDestino, esPuerta)
@@ -520,6 +525,7 @@ task.spawn(function()
             if tonumber(obj.Name) then table.insert(salas, obj) end
         end
         
+        -- ORDENAR SALAS DE IDA (PASADA 1) Y VUELTA (PASADA 2)
         if pasada % 2 == 1 then
             table.sort(salas, function(a, b) return tonumber(a.Name) < tonumber(b.Name) end)
         else
@@ -557,6 +563,7 @@ task.spawn(function()
             
             if #nodosExistentes > 0 then
                 for _, nodo in ipairs(nodosExistentes) do 
+                    if _G.B35_Shared.Crucificado then break end
                     moverFisicamenteHacia(nodo.Position, false) 
                 end
             else
@@ -567,25 +574,29 @@ task.spawn(function()
             local nodoPuerta = sala:FindFirstChild("Door") or sala:FindFirstChild("DoorPlatform")
             if nodoPuerta then
                 if nodoPuerta:IsA("Model") then nodoPuerta = nodoPuerta.PrimaryPart or nodoPuerta:FindFirstChild("Door") or nodoPuerta:FindFirstChildOfClass("BasePart") end
-                if nodoPuerta then moverFisicamenteHacia(nodoPuerta.Position, true) end
+                if nodoPuerta and not _G.B35_Shared.Crucificado then moverFisicamenteHacia(nodoPuerta.Position, true) end
             end
         end
         
         task.wait(math.random(15, 28) * 0.1)
     end
 
-    romperLucesDeHabitaciones()
-
+    -- SI FUE CRUCIFICADO, DETIENE LA MÚSICA Y DEJA QUE LA PARTE 1 LIMPIE LA ENTIDAD
     soundMov:Destroy()
     if sonidoAdv1 then sonidoAdv1:Destroy() end
 
-    -- LOGRO DE SOBREVIVIR SI NO FUE CRUCIFICADO
-    if not _G.B35_Shared.Crucificado then
-        local personaje = localPlayer.Character
-        if personaje and personaje:FindFirstChildOfClass("Humanoid") and personaje:FindFirstChildOfClass("Humanoid").Health > 0 then
-            if _G.B35_Shared.MostrarLogro then
-                _G.B35_Shared.MostrarLogro(_G.B35_Shared.LogroSobrevivir)
-            end
+    if _G.B35_Shared and _G.B35_Shared.Crucificado then
+        print("[SISTEMA] Movimiento cancelado: Entidad crucificada con éxito.")
+        return
+    end
+
+    romperLucesDeHabitACIONES()
+
+    -- SI SOBREVIVIÓ SIN USAR CRUCIFIJO
+    local personaje = localPlayer.Character
+    if personaje and personaje:FindFirstChildOfClass("Humanoid") and personaje:FindFirstChildOfClass("Humanoid").Health > 0 then
+        if _G.B35_Shared and _G.B35_Shared.MostrarLogro then
+            _G.B35_Shared.MostrarLogro(_G.B35_Shared.LogroSobrevivir)
         end
     end
 
