@@ -1,5 +1,5 @@
 -- ==========================================================
--- SCRIPT TORMENT - PARTE 1: CORE, LUZ MORADA, CRUCIFIJO Y LOGROS
+-- SCRIPT TORMENT - PARTE 1: CORE, LOGROS Y CRUCIFIJO
 -- ==========================================================
 local Players = game:GetService("Players")
 local CollectionService = game:GetService("CollectionService")
@@ -132,7 +132,7 @@ task.spawn(function()
 	end
 end)
 
--- DETECTAR CRUCIFIJO
+-- BUSCAR CRUCIFIJO EN MANO O EN INVENTARIO
 local function buscarCrucifijo(personaje)
 	if not personaje then return nil end
 	for _, item in ipairs(personaje:GetChildren()) do
@@ -151,7 +151,7 @@ local function buscarCrucifijo(personaje)
 	return nil
 end
 
--- EJECUTAR EVENTO CRUCIFIJO (COMPLETO DE 8 SEGUNDOS)
+-- EJECUTAR CINEMÁTICA DE CRUCIFICACIÓN (8 SEGUNDOS)
 local function crucificarTorment(personaje, crucifijo)
 	_G.B35_Shared.Crucificado = true
 	crucifijo:Destroy()
@@ -173,7 +173,7 @@ local function crucificarTorment(personaje, crucifijo)
 	raycastParametros.FilterType = Enum.RaycastFilterType.Exclude
 	raycastParametros.FilterDescendantsInstances = {entidad, personaje}
 	
-	local resultadoRaycast = Workspace:Raycast(entidad.Position, Vector3.new(0, -15, 0), raycastParametros)
+	local resultadoRaycast = Workspace:Raycast(entidad.Position, Vector3.new(0, -20, 0), raycastParametros)
 	if resultadoRaycast then
 		posSuelo = resultadoRaycast.Position + Vector3.new(0, 0.05, 0)
 	end
@@ -217,7 +217,7 @@ local function crucificarTorment(personaje, crucifijo)
 		table.insert(listaCadenas, cadena)
 	end
 
-	-- PASO 1: SUBE (3.5s)
+	-- FASE 1: SUBE (3.5 SEC)
 	local posArriba = entidad.CFrame * CFrame.new(0, 10, 0)
 	local tweenSubir = TweenService:Create(
 		entidad,
@@ -227,7 +227,7 @@ local function crucificarTorment(personaje, crucifijo)
 	tweenSubir:Play()
 	task.wait(3.5)
 
-	-- PASO 2: BAJA Y SE HUNDE (4.5s)
+	-- FASE 2: SE HUNDE EN LA TIERRA (4.5 SEC)
 	local posTragado = CFrame.new(posSuelo - Vector3.new(0, 15, 0))
 	local tweenBajar = TweenService:Create(
 		entidad,
@@ -246,7 +246,6 @@ local function crucificarTorment(personaje, crucifijo)
 	tweenBajar:Play()
 	tweenBajar.Completed:Wait()
 
-	-- LIMPIEZA Y LOGRO DE CRUCIFIJO
 	circuloSuelo:Destroy()
 	modeloCadenas:Destroy()
 	if entidad then entidad:Destroy() end
@@ -259,9 +258,8 @@ local function estaAgachado(personaje)
 	if not personaje then return false end
 	local hum = personaje:FindFirstChildOfClass("Humanoid")
 	if hum then
-		if hum.Crouch or hum:GetAttribute("Crouching") == true or hum.HipHeight < 1.5 then
-			return true
-		end
+		if hum.MoveDirection.Magnitude > 0 and hum.HipHeight < 1.2 then return true end
+		if hum:GetAttribute("Crouching") == true or hum.HipHeight < 1.4 then return true end
 	end
 	if personaje:GetAttribute("Crouching") == true or localPlayer:GetAttribute("Crouching") == true then
 		return true
@@ -269,83 +267,77 @@ local function estaAgachado(personaje)
 	return false
 end
 
--- DETECCIÓN EN ESQUINAS Y HABITACIONES PEQUEÑAS
-local function estaEnEsquinaSegura(personaje)
-    if not personaje or not personaje:FindFirstChild("HumanoidRootPart") then return false end
-    local rootPart = personaje.HumanoidRootPart
-    local pos = rootPart.Position
-    
-    for _, sala in ipairs(currentRooms:GetChildren()) do
-        local centroSala = sala:FindFirstChild("RoomStart") or sala:FindFirstChild("Floor") or sala:FindFirstChild("PrimaryPart")
-        if centroSala and centroSala:IsA("BasePart") then
-            local distCentro = (pos - centroSala.Position).Magnitude
-            if distCentro < 50 then
-                local tamanoPiso = centroSala.Size
-                local posRelativa = centroSala.CFrame:PointToObjectSpace(pos)
-                
-                local limiteX = math.max((tamanoPiso.X / 2) - 2.5, 1)
-                local limiteZ = math.max((tamanoPiso.Z / 2) - 2.5, 1)
-                
-                local estaEnEsquina = math.abs(posRelativa.X) >= limiteX and math.abs(posRelativa.Z) >= limiteZ
-                
-                if estaEnEsquina and estaAgachado(personaje) then
-                    return true
-                end
-                
-                if entidad and entidad.Parent then
-                    local rayParams = RaycastParams.new()
-                    rayParams.FilterType = Enum.RaycastFilterType.Exclude
-                    rayParams.FilterDescendantsInstances = {entidad, personaje}
-                    
-                    local resultado = Workspace:Raycast(entidad.Position, (pos - entidad.Position), rayParams)
-                    if resultado and resultado.Instance and resultado.Instance.CanCollide then
-                        if estaAgachado(personaje) then
-                            return true
-                        end
-                    end
-                end
-            end
-        end
-    end
-    return false
+-- DETECCIÓN EXCLUSIVA PARA ESQUINAS (ÚNICA FORMA DE SOBREVIVIR)
+local function estaProtegidoEnEsquina(personaje)
+	if not personaje or not personaje:FindFirstChild("HumanoidRootPart") then return false end
+	
+	-- Debe estar agachado obligatoriamente
+	if not estaAgachado(personaje) then return false end
+
+	local pos = personaje.HumanoidRootPart.Position
+	
+	for _, sala in ipairs(currentRooms:GetChildren()) do
+		local centroSala = sala:FindFirstChild("RoomStart") or sala:FindFirstChild("Floor") or sala:FindFirstChild("PrimaryPart")
+		if centroSala and centroSala:IsA("BasePart") then
+			local distCentro = (pos - centroSala.Position).Magnitude
+			if distCentro < 45 then
+				local tamanoPiso = centroSala.Size
+				local posRelativa = centroSala.CFrame:PointToObjectSpace(pos)
+				
+				-- Límites estrictos para considerar esquina
+				local limiteX = math.max((tamanoPiso.X / 2) - 3, 1)
+				local limiteZ = math.max((tamanoPiso.Z / 2) - 3, 1)
+				
+				if math.abs(posRelativa.X) >= limiteX and math.abs(posRelativa.Z) >= limiteZ then
+					return true
+				end
+			end
+		end
+	end
+
+	return false
 end
 
--- BUCLE PRINCIPAL DE DAÑO
+-- BUCLE PRINCIPAL DE DAÑO Y CRUCIFICACIÓN
 task.spawn(function()
-	while task.wait(0.03) do
+	while task.wait(0.02) do
 		if not entidad or not entidad.Parent or _G.B35_Shared.Crucificado then break end
 		local personaje = localPlayer.Character
 		if personaje and personaje:FindFirstChild("HumanoidRootPart") and personaje:FindFirstChildOfClass("Humanoid") then
 			local hum = personaje:FindFirstChildOfClass("Humanoid")
 			if hum.Health <= 0 then continue end
 
-			local distanciaDeteccion = 18
-			if estaAgachado(personaje) then
-				distanciaDeteccion = 10
-			end
+			local distancia = (entidad.Position - personaje.HumanoidRootPart.Position).Magnitude
 
-			if (entidad.Position - personaje.HumanoidRootPart.Position).Magnitude < distanciaDeteccion then
+			-- RANGO AMPLIADO A 30 PARA DETECTAR EL CRUCIFIJO Y ATACAR
+			if distancia < 30 then
 				
+				-- 1. DETECTAR CRUCIFIJO EN MANO O MOCHILA
 				local crucifijo = buscarCrucifijo(personaje)
 				if crucifijo then
 					crucificarTorment(personaje, crucifijo)
 					break
 				end
 
-				if estaEnEsquinaSegura(personaje) then
-					-- Protegido
-				else
-					localPlayer:SetAttribute("AsesinadoPorTorment", true)
-					mostrarLogro(ID_LOGRO_MORIR)
+				-- 2. VERIFICAR DAÑO SI ESTÁ CERCA (DISTANCIA DE ATAQUE: 25)
+				if distancia < 25 then
+					-- Solo se salva si está agachado Y en una esquina
+					if estaProtegidoEnEsquina(personaje) then
+						-- Jugador a salvo en la esquina
+					else
+						-- DE PIE O FUERA DE ESQUINA: MATE AL JUGADOR
+						localPlayer:SetAttribute("AsesinadoPorTorment", true)
+						mostrarLogro(ID_LOGRO_MORIR)
 
-					local sonidoJumpscare = Instance.new("Sound")
-					sonidoJumpscare.SoundId = "rbxassetid://139319051979882"
-					sonidoJumpscare.Volume = 5
-					sonidoJumpscare.Parent = workspace.CurrentCamera
-					sonidoJumpscare:Play()
-					
-					task.wait(0.01)
-					hum.Health = 0
+						local sonidoJumpscare = Instance.new("Sound")
+						sonidoJumpscare.SoundId = "rbxassetid://139319051979882"
+						sonidoJumpscare.Volume = 5
+						sonidoJumpscare.Parent = workspace.CurrentCamera
+						sonidoJumpscare:Play()
+						
+						task.wait(0.01)
+						hum.Health = 0
+					end
 				end
 			end
 		end
@@ -368,7 +360,7 @@ end
 local entidad = _G.B35_Shared and _G.B35_Shared.Entidad
 if not entidad then error("Error: No se enlazó la Parte 1.") end
 
-print("[PARTE 2] Sistema de partículas explosivas y temblor inyectado.")
+print("[PARTE 2] Sistema de partículas y temblor inyectado.")
 
 local function generarParticulasGlitchEnSala(sala)
     if not sala or not entidad or not entidad.Parent then return end
@@ -418,7 +410,7 @@ end
 _G.B35_Shared.SoltarParticulas = generarParticulasGlitchEnSala
 
 local conexionTemblor = RunService.RenderStepped:Connect(function()
-    if not entidad or not entidad.Parent then return end
+    if not entidad or not entidad.Parent or (_G.B35_Shared and _G.B35_Shared.Crucificado) then return end
     local personaje = localPlayer.Character
     if personaje and personaje:FindFirstChild("HumanoidRootPart") then
         local distancia = (entidad.Position - personaje.HumanoidRootPart.Position).Magnitude
@@ -462,7 +454,7 @@ local currentRooms = workspace:FindFirstChild("CurrentRooms")
 if not currentRooms then return end
 
 if not _G.B35_Shared or not _G.B35_Shared.Entidad then
-    error("Error: No se detectó el entorno físico de las fases previas.")
+    error("Error: No se detectó el entorno de las partes anteriores.")
 end
 
 local entidad = _G.B35_Shared.Entidad
@@ -597,7 +589,7 @@ task.spawn(function()
     soundMov:Destroy()
     if sonidoAdv1 then sonidoAdv1:Destroy() end
 
-    -- LOGRO DE SOBREVIVIR
+    -- LOGRO DE SOBREVIVIR SI NO FUE CRUCIFICADO
     if not _G.B35_Shared.Crucificado then
         local personaje = localPlayer.Character
         if personaje and personaje:FindFirstChildOfClass("Humanoid") and personaje:FindFirstChildOfClass("Humanoid").Health > 0 then
@@ -609,5 +601,5 @@ task.spawn(function()
 
     if entidad then entidad:Destroy() end
     _G.B35_Shared = nil
-    print("[SISTEMA] Torment completó sus 2 pasadas.")
+    print("[SISTEMA] Torment completó sus 2 pasadas correctamente.")
 end)
