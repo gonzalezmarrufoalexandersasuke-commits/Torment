@@ -1,5 +1,5 @@
 -- ==========================================================
--- SCRIPT TORMENT - PARTE 1: CORE, LOGROS Y CRUCIFIJO
+-- SCRIPT TORMENT - PARTE 1: CORE, LOGROS Y CRUCIFIJO CORREGIDO
 -- ==========================================================
 local Players = game:GetService("Players")
 local CollectionService = game:GetService("CollectionService")
@@ -15,8 +15,8 @@ local ID_LOGRO_SOBREVIVIR = "rbxassetid://105719496569675"
 local ID_LOGRO_MORIR = "rbxassetid://96662874287445"
 local ID_LOGRO_CRUCIFIJO = "rbxassetid://85700739597718"
 
--- ASSETS DE CRUCIFICACIÓN
-local AUDIO_CRUCIFIJO = "rbxassetid://90564087350209"
+-- NUEVO AUDIO Y ASSETS DE CRUCIFICACIÓN
+local AUDIO_CRUCIFIJO = "rbxassetid://115833319186798"
 local CIRCULO_SUELO_ID = "rbxassetid://12391880458"
 local CADENA_ID = "rbxassetid://88169127674752"
 
@@ -132,7 +132,7 @@ task.spawn(function()
 	end
 end)
 
--- BUSCAR CRUCIFIJO EN MANO O EN INVENTARIO
+-- BUSCAR CRUCIFIJO
 local function buscarCrucifijo(personaje)
 	if not personaje then return nil end
 	for _, item in ipairs(personaje:GetChildren()) do
@@ -151,14 +151,14 @@ local function buscarCrucifijo(personaje)
 	return nil
 end
 
--- EJECUTAR CINEMÁTICA DE CRUCIFICACIÓN (8 SEGUNDOS)
+-- EJECUTAR CINEMÁTICA DE CRUCIFICACIÓN (AUDIO 7s / IMAGEN Y CADENAS 8s)
 local function crucificarTorment(personaje, crucifijo)
 	_G.B35_Shared.Crucificado = true
 	crucifijo:Destroy()
 
 	local sonidoCrucifijo = Instance.new("Sound")
 	sonidoCrucifijo.SoundId = AUDIO_CRUCIFIJO
-	sonidoCrucifijo.Volume = 4
+	sonidoCrucifijo.Volume = 5
 	sonidoCrucifijo.Parent = entidad
 	sonidoCrucifijo:Play()
 
@@ -173,14 +173,14 @@ local function crucificarTorment(personaje, crucifijo)
 	raycastParametros.FilterType = Enum.RaycastFilterType.Exclude
 	raycastParametros.FilterDescendantsInstances = {entidad, personaje}
 	
-	local resultadoRaycast = Workspace:Raycast(entidad.Position, Vector3.new(0, -20, 0), raycastParametros)
+	local resultadoRaycast = Workspace:Raycast(entidad.Position, Vector3.new(0, -25, 0), raycastParametros)
 	if resultadoRaycast then
 		posSuelo = resultadoRaycast.Position + Vector3.new(0, 0.05, 0)
 	end
 
 	local circuloSuelo = Instance.new("Part")
 	circuloSuelo.Size = Vector3.new(12, 0.05, 12)
-	circuloSuelo.Transparency = 1
+	circuloSuelo.Transparency = 0
 	circuloSuelo.Anchored = true
 	circuloSuelo.CanCollide = false
 	circuloSuelo.CFrame = CFrame.new(posSuelo)
@@ -200,12 +200,12 @@ local function crucificarTorment(personaje, crucifijo)
 
 	for _, angulo in ipairs(angulos) do
 		local cadena = Instance.new("Part")
-		cadena.Size = Vector3.new(2, 8, 0.05)
-		cadena.Transparency = 1
+		cadena.Size = Vector3.new(2, 10, 0.05)
+		cadena.Transparency = 0
 		cadena.Anchored = true
 		cadena.CanCollide = false
 		
-		local offsetSuelo = CFrame.new(posSuelo) * CFrame.Angles(0, math.rad(angulo), 0) * CFrame.new(0, 3, 4)
+		local offsetSuelo = CFrame.new(posSuelo) * CFrame.Angles(0, math.rad(angulo), 0) * CFrame.new(0, 4, 4)
 		cadena.CFrame = CFrame.lookAt(offsetSuelo.Position, entidad.Position) * CFrame.Angles(math.rad(-25), 0, 0)
 		cadena.Parent = modeloCadenas
 
@@ -217,35 +217,36 @@ local function crucificarTorment(personaje, crucifijo)
 		table.insert(listaCadenas, cadena)
 	end
 
-	-- FASE 1: SUBE (3.5 SEC)
-	local posArriba = entidad.CFrame * CFrame.new(0, 10, 0)
+	-- PASO 1: SUBE LENTAMENTE (3.5 segundos)
+	local posArriba = entidad.CFrame * CFrame.new(0, 8, 0)
 	local tweenSubir = TweenService:Create(
 		entidad,
 		TweenInfo.new(3.5, Enum.EasingStyle.Sine, Enum.EasingDirection.Out),
 		{CFrame = posArriba}
 	)
 	tweenSubir:Play()
-	task.wait(3.5)
+	tweenSubir.Completed:Wait()
 
-	-- FASE 2: SE HUNDE EN LA TIERRA (4.5 SEC)
-	local posTragado = CFrame.new(posSuelo - Vector3.new(0, 15, 0))
+	-- PASO 2: BAJA Y SE HUNDE (4.5 segundos -> Total 8s)
+	local posTragado = CFrame.new(posSuelo - Vector3.new(0, 18, 0))
 	local tweenBajar = TweenService:Create(
 		entidad,
 		TweenInfo.new(4.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
-		{CFrame = posTragado, Transparency = 1}
+		{CFrame = posTragado}
 	)
 
 	for _, cad in ipairs(listaCadenas) do
 		TweenService:Create(
 			cad,
 			TweenInfo.new(4.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
-			{CFrame = cad.CFrame * CFrame.new(0, -15, 0), Transparency = 1}
+			{CFrame = cad.CFrame * CFrame.new(0, -18, 0)}
 		):Play()
 	end
 
 	tweenBajar:Play()
-	tweenBajar.Completed:Wait()
+	tweenBajar.Completed:Wait() -- Espera a que termine la animación antes de borrar los objetos
 
+	-- LIMPIEZA FINAL AL COMPLETAR LOS 8 SEGUNDOS
 	circuloSuelo:Destroy()
 	modeloCadenas:Destroy()
 	if entidad then entidad:Destroy() end
@@ -253,7 +254,7 @@ local function crucificarTorment(personaje, crucifijo)
 	mostrarLogro(ID_LOGRO_CRUCIFIJO)
 end
 
--- DETECTAR JUGADOR AGACHADO
+-- DETECTAR AGACHADO
 local function estaAgachado(personaje)
 	if not personaje then return false end
 	local hum = personaje:FindFirstChildOfClass("Humanoid")
@@ -267,15 +268,12 @@ local function estaAgachado(personaje)
 	return false
 end
 
--- DETECCIÓN EXCLUSIVA PARA ESQUINAS (ÚNICA FORMA DE SOBREVIVIR)
+-- DETECCIÓN SOLO EN ESQUINAS
 local function estaProtegidoEnEsquina(personaje)
 	if not personaje or not personaje:FindFirstChild("HumanoidRootPart") then return false end
-	
-	-- Debe estar agachado obligatoriamente
 	if not estaAgachado(personaje) then return false end
 
 	local pos = personaje.HumanoidRootPart.Position
-	
 	for _, sala in ipairs(currentRooms:GetChildren()) do
 		local centroSala = sala:FindFirstChild("RoomStart") or sala:FindFirstChild("Floor") or sala:FindFirstChild("PrimaryPart")
 		if centroSala and centroSala:IsA("BasePart") then
@@ -284,7 +282,6 @@ local function estaProtegidoEnEsquina(personaje)
 				local tamanoPiso = centroSala.Size
 				local posRelativa = centroSala.CFrame:PointToObjectSpace(pos)
 				
-				-- Límites estrictos para considerar esquina
 				local limiteX = math.max((tamanoPiso.X / 2) - 3, 1)
 				local limiteZ = math.max((tamanoPiso.Z / 2) - 3, 1)
 				
@@ -294,11 +291,10 @@ local function estaProtegidoEnEsquina(personaje)
 			end
 		end
 	end
-
 	return false
 end
 
--- BUCLE PRINCIPAL DE DAÑO Y CRUCIFICACIÓN
+-- BUCLE DE DAÑO
 task.spawn(function()
 	while task.wait(0.02) do
 		if not entidad or not entidad.Parent or _G.B35_Shared.Crucificado then break end
@@ -309,23 +305,17 @@ task.spawn(function()
 
 			local distancia = (entidad.Position - personaje.HumanoidRootPart.Position).Magnitude
 
-			-- RANGO AMPLIADO A 30 PARA DETECTAR EL CRUCIFIJO Y ATACAR
 			if distancia < 30 then
-				
-				-- 1. DETECTAR CRUCIFIJO EN MANO O MOCHILA
 				local crucifijo = buscarCrucifijo(personaje)
 				if crucifijo then
 					crucificarTorment(personaje, crucifijo)
 					break
 				end
 
-				-- 2. VERIFICAR DAÑO SI ESTÁ CERCA (DISTANCIA DE ATAQUE: 25)
 				if distancia < 25 then
-					-- Solo se salva si está agachado Y en una esquina
 					if estaProtegidoEnEsquina(personaje) then
-						-- Jugador a salvo en la esquina
+						-- A salvo en la esquina
 					else
-						-- DE PIE O FUERA DE ESQUINA: MATE AL JUGADOR
 						localPlayer:SetAttribute("AsesinadoPorTorment", true)
 						mostrarLogro(ID_LOGRO_MORIR)
 
