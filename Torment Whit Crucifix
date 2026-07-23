@@ -1,0 +1,602 @@
+-- ==========================================================
+-- SCRIPT TORMENT - PARTE 1: CORE, LUZ MORADA Y LOGROS
+-- ==========================================================
+local Players = game:GetService("Players")
+local CollectionService = game:GetService("CollectionService")
+local TweenService = game:GetService("TweenService")
+local Workspace = game:GetService("Workspace")
+local localPlayer = Players.LocalPlayer
+
+local TEXTURA_ID = "rbxassetid://110420633620736"
+local TAMANO_ENTIDAD = Vector3.new(12, 12, 0.2)
+
+-- IDS DE LOGROS
+local ID_LOGRO_SOBREVIVIR = "rbxassetid://105719496569675"
+local ID_LOGRO_MORIR = "rbxassetid://96662874287445"
+local ID_LOGRO_CRUCIFIJO = "rbxassetid://85700739597718"
+
+-- ASSETS DE CRUCIFICACIÓN
+local AUDIO_CRUCIFIJO = "rbxassetid://90564087350209"
+local CIRCULO_SUELO_ID = "rbxassetid://12391880458"
+local CADENA_ID = "rbxassetid://88169127674752"
+
+local currentRooms = workspace:FindFirstChild("CurrentRooms")
+if not currentRooms then
+    error("¡Error! No se encontró 'CurrentRooms'.")
+end
+
+local entidadPrevia = workspace:FindFirstChild("IA_Rush_Torment")
+if entidadPrevia then entidadPrevia:Destroy() end
+
+local sala1 = currentRooms:FindFirstChild("0") or currentRooms:FindFirstChild("1")
+local puertaSpawn = sala1 and (sala1:FindFirstChild("Door") or sala1:FindFirstChild("DoorPlatform"))
+if puertaSpawn and puertaSpawn:IsA("Model") then
+    puertaSpawn = puertaSpawn.PrimaryPart or puertaSpawn:FindFirstChild("Door") or puertaSpawn:FindFirstChildOfClass("BasePart")
+end
+local posicionSpawn = puertaSpawn and puertaSpawn.CFrame or CFrame.new(0, 5, 0)
+
+-- CREACIÓN DE TORMENT
+local entidad = Instance.new("Part")
+entidad.Name = "IA_Rush_Torment"
+entidad.Size = TAMANO_ENTIDAD
+entidad.Transparency = 1
+entidad.Anchored = true
+entidad.CanCollide = false
+entidad.CFrame = posicionSpawn * CFrame.new(0, 3, 0)
+entidad.Parent = workspace
+
+-- LUZ MORADA
+local luzMorada = Instance.new("PointLight")
+luzMorada.Color = Color3.fromRGB(170, 0, 255)
+luzMorada.Brightness = 10
+luzMorada.Range = 35
+luzMorada.Parent = entidad
+
+local decalFrente = Instance.new("Decal")
+decalFrente.Texture = TEXTURA_ID; decalFrente.Face = Enum.NormalId.Front; decalFrente.Parent = entidad
+local decalAtras = Instance.new("Decal")
+decalAtras.Texture = TEXTURA_ID; decalAtras.Face = Enum.NormalId.Back; decalAtras.Parent = entidad
+
+print("[PARTE 1] Torment cargado correctamente con Luz Morada.")
+
+-- SISTEMA DE LOGROS EN PANTALLA
+local function mostrarLogro(imagenId)
+	local playerGui = localPlayer:FindFirstChild("PlayerGui")
+	if not playerGui then return end
+
+	local screenGui = Instance.new("ScreenGui")
+	screenGui.Name = "LogroTormentGui"
+	screenGui.ResetOnSpawn = false
+	screenGui.Parent = playerGui
+
+	local marcoLogro = Instance.new("ImageLabel")
+	marcoLogro.Name = "MarcoLogro"
+	marcoLogro.Image = imagenId
+	marcoLogro.BackgroundTransparency = 1
+	marcoLogro.Size = UDim2.new(0, 260, 0, 80)
+	marcoLogro.Position = UDim2.new(1, 20, 0, 20)
+	marcoLogro.AnchorPoint = Vector2.new(1, 0)
+	marcoLogro.Parent = screenGui
+
+	local tweenEntrada = TweenService:Create(marcoLogro, TweenInfo.new(0.5, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Position = UDim2.new(1, -20, 0, 20)})
+	local tweenSalida = TweenService:Create(marcoLogro, TweenInfo.new(0.5, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {Position = UDim2.new(1, 300, 0, 20)})
+
+	tweenEntrada:Play()
+	task.delay(4, function()
+		tweenSalida:Play()
+		tweenSalida.Completed:Wait()
+		screenGui:Destroy()
+	end)
+end
+
+local anguloGlitchY = 0
+local offsetGlitchVector = Vector3.new(0, 0, 0)
+
+_G.B35_Shared = {
+    Entidad = entidad,
+    Angulo = 0,
+    Offset = Vector3.new(0,0,0),
+    MostrarLogro = mostrarLogro,
+    LogroSobrevivir = ID_LOGRO_SOBREVIVIR,
+    Crucificado = false
+}
+
+task.spawn(function()
+	while entidad and entidad.Parent do
+		task.wait(0.06)
+		if not entidad.Parent then break end; anguloGlitchY = -28
+		task.wait(0.1)
+		if not entidad.Parent then break end; anguloGlitchY = 42
+		task.wait(0.04)
+		if not entidad.Parent then break end; anguloGlitchY = -15
+		task.wait(0.09)
+		if not entidad.Parent then break end; anguloGlitchY = 35
+		task.wait(0.05)
+		if not entidad.Parent then break end; anguloGlitchY = -49
+		task.wait(0.12)
+		if not entidad.Parent then break end; anguloGlitchY = 22
+		task.wait(0.07)
+		if not entidad.Parent then break end; anguloGlitchY = -8
+        if _G.B35_Shared then _G.B35_Shared.Angulo = anguloGlitchY end
+	end
+end)
+
+task.spawn(function()
+	while task.wait(0.02) do
+		if not entidad or not entidad.Parent then break end
+		local offsetX = math.random(-2, 2)
+		local offsetY = math.random(-3, 3)
+		local offsetZ = math.random(-2, 3)
+		offsetGlitchVector = Vector3.new(offsetX, offsetY, offsetZ)
+		if _G.B35_Shared then _G.B35_Shared.Offset = offsetGlitchVector end
+	end
+end)
+
+-- DETECTAR CRUCIFIJO
+local function buscarCrucifijo(personaje)
+	if not personaje then return nil end
+	for _, item in ipairs(personaje:GetChildren()) do
+		if item:IsA("Tool") and (item.Name:lower():find("crucifix") or item.Name:lower():find("crucifijo")) then
+			return item
+		end
+	end
+	local backpack = localPlayer:FindFirstChild("Backpack")
+	if backpack then
+		for _, item in ipairs(backpack:GetChildren()) do
+			if item:IsA("Tool") and (item.Name:lower():find("crucifix") or item.Name:lower():find("crucifijo")) then
+				return item
+			end
+		end
+	end
+	return nil
+end
+
+-- EJECUTAR EVENTO CRUCIFIJO
+local function crucificarTorment(personaje, crucifijo)
+	_G.B35_Shared.Crucificado = true
+	crucifijo:Destroy()
+
+	local sonidoCrucifijo = Instance.new("Sound")
+	sonidoCrucifijo.SoundId = AUDIO_CRUCIFIJO
+	sonidoCrucifijo.Volume = 4
+	sonidoCrucifijo.Parent = entidad
+	sonidoCrucifijo:Play()
+
+	local aura = Instance.new("Highlight")
+	aura.FillColor = Color3.fromRGB(170, 0, 255)
+	aura.OutlineColor = Color3.fromRGB(255, 255, 255)
+	aura.FillTransparency = 0.2
+	aura.Parent = entidad
+
+	local posSuelo = entidad.Position - Vector3.new(0, 3, 0)
+	local raycastParametros = RaycastParams.new()
+	raycastParametros.FilterType = Enum.RaycastFilterType.Exclude
+	raycastParametros.FilterDescendantsInstances = {entidad, personaje}
+	
+	local resultadoRaycast = Workspace:Raycast(entidad.Position, Vector3.new(0, -15, 0), raycastParametros)
+	if resultadoRaycast then
+		posSuelo = resultadoRaycast.Position + Vector3.new(0, 0.05, 0)
+	end
+
+	local circuloSuelo = Instance.new("Part")
+	circuloSuelo.Size = Vector3.new(10, 0.05, 10)
+	circuloSuelo.Transparency = 1
+	circuloSuelo.Anchored = true
+	circuloSuelo.CanCollide = false
+	circuloSuelo.CFrame = CFrame.new(posSuelo)
+	circuloSuelo.Parent = Workspace
+
+	local decalCirculoArriba = Instance.new("Decal")
+	decalCirculoArriba.Texture = CIRCULO_SUELO_ID
+	decalCirculoArriba.Face = Enum.NormalId.Top
+	decalCirculoArriba.Parent = circuloSuelo
+
+	local modeloCadenas = Instance.new("Model")
+	modeloCadenas.Name = "CadenasTorment"
+	modeloCadenas.Parent = Workspace
+
+	local angulos = {45, 135, 225, 315}
+	local listaCadenas = {}
+
+	for _, angulo in ipairs(angulos) do
+		local cadena = Instance.new("Part")
+		cadena.Size = Vector3.new(1.8, 7, 0.05)
+		cadena.Transparency = 1
+		cadena.Anchored = true
+		cadena.CanCollide = false
+		
+		local offsetSuelo = CFrame.new(posSuelo) * CFrame.Angles(0, math.rad(angulo), 0) * CFrame.new(0, 3, 3)
+		cadena.CFrame = CFrame.lookAt(offsetSuelo.Position, entidad.Position) * CFrame.Angles(math.rad(-25), 0, 0)
+		cadena.Parent = modeloCadenas
+
+		local decalF = Instance.new("Decal")
+		decalF.Texture = CADENA_ID; decalF.Face = Enum.NormalId.Front; decalF.Parent = cadena
+		local decalB = Instance.new("Decal")
+		decalB.Texture = CADENA_ID; decalB.Face = Enum.NormalId.Back; decalB.Parent = cadena
+
+		table.insert(listaCadenas, cadena)
+	end
+
+	task.wait(4)
+
+	local posAbajo = CFrame.new(posSuelo - Vector3.new(0, 8, 0))
+	local tweenEntidadBajar = TweenService:Create(
+		entidad,
+		TweenInfo.new(2.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+		{CFrame = posAbajo, Transparency = 1}
+	)
+
+	for _, cad in ipairs(listaCadenas) do
+		TweenService:Create(
+			cad,
+			TweenInfo.new(2.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+			{CFrame = cad.CFrame * CFrame.new(0, -8, 0), Transparency = 1}
+		):Play()
+	end
+
+	tweenEntidadBajar:Play()
+	tweenEntidadBajar.Completed:Wait()
+
+	circuloSuelo:Destroy()
+	modeloCadenas:Destroy()
+	if entidad then entidad:Destroy() end
+
+	mostrarLogro(ID_LOGRO_CRUCIFIJO)
+end
+
+-- ESCANEO ARMARIO
+local function escanearSeguridadArmario(personaje)
+	if not personaje then return false end
+	if personaje:GetAttribute("Hidden") == true or personaje:GetAttribute("IsHidden") == true or personaje:GetAttribute("Hiding") == true then return true end
+	local jugador = Players:GetPlayerFromCharacter(personaje)
+	if jugador and (jugador:GetAttribute("Hidden") == true or jugador:GetAttribute("IsHidden") == true) then return true end
+	local ancestro = personaje.Parent
+	while ancestro and ancestro ~= workspace do
+		local nL = ancestro.Name:lower()
+		if nL:find("closet") or nL:find("wardrobe") or nL:find("bed") or nL:find("hide") or nL:find("armario") then return true end
+		ancestro = ancestro.Parent
+	end
+	if personaje:FindFirstChild("InCloset") or personaje:FindFirstChild("Escondido") or personaje:FindFirstChild("HidingIn") or personaje:FindFirstChild("Hiding") then return true end
+	local rootPart = personaje:FindFirstChild("HumanoidRootPart")
+	local upperTorso = personaje:FindFirstChild("UpperTorso") or personaje:FindFirstChild("Torso")
+	if upperTorso and rootPart and upperTorso.Transparency >= 0.9 and rootPart.Transparency >= 0.9 then return true end
+	if rootPart then
+		for _, sala in ipairs(currentRooms:GetChildren()) do
+			local assets = sala:FindFirstChild("Assets") or sala
+			for _, obj in ipairs(assets:GetChildren()) do
+				local n = obj.Name:lower()
+				if n:find("closet") or n:find("wardrobe") or n:find("bed") then
+					local mainPart = obj.PrimaryPart or obj:FindFirstChild("Hitbox") or obj:FindFirstChild("Main")
+					if mainPart and mainPart:IsA("BasePart") then
+						if (rootPart.Position - mainPart.Position).Magnitude < 4.5 then return true end
+					end
+				end
+			end
+		end
+	end
+	return false
+end
+
+-- DETECCIÓN DE ESQUINAS
+local function estaEnEsquinaSegura(personaje)
+    if not personaje or not personaje:FindFirstChild("HumanoidRootPart") then return false end
+    local pos = personaje.HumanoidRootPart.Position
+    
+    for _, sala in ipairs(currentRooms:GetChildren()) do
+        local centroSala = sala:FindFirstChild("RoomStart") or sala:FindFirstChild("Floor") or sala:FindFirstChild("PrimaryPart")
+        if centroSala and centroSala:IsA("BasePart") then
+            local distCentro = (pos - centroSala.Position).Magnitude
+            if distCentro < 45 then
+                local tamanoPiso = centroSala.Size
+                local posRelativa = centroSala.CFrame:PointToObjectSpace(pos)
+                
+                local limiteX = (tamanoPiso.X / 2) - 3.5
+                local limiteZ = (tamanoPiso.Z / 2) - 3.5
+                
+                if math.abs(posRelativa.X) >= limiteX and math.abs(posRelativa.Z) >= limiteZ then
+                    return true
+                end
+            end
+        end
+    end
+    return false
+end
+
+-- BUCLE PRINCIPAL DE DAÑO Y CRUCIFIJO
+task.spawn(function()
+	while task.wait(0.03) do
+		if not entidad or not entidad.Parent or _G.B35_Shared.Crucificado then break end
+		local personaje = localPlayer.Character
+		if personaje and personaje:FindFirstChild("HumanoidRootPart") and personaje:FindFirstChildOfClass("Humanoid") then
+			local hum = personaje:FindFirstChildOfClass("Humanoid")
+			if hum.Health <= 0 then continue end
+			if (entidad.Position - personaje.HumanoidRootPart.Position).Magnitude < 22 then
+				
+				-- REVISAR SI EL JUGADOR TIENE UN CRUCIFIJO
+				local crucifijo = buscarCrucifijo(personaje)
+				if crucifijo then
+					crucificarTorment(personaje, crucifijo)
+					break
+				end
+
+				if escanearSeguridadArmario(personaje) or estaEnEsquinaSegura(personaje) then
+					-- Jugador a salvo
+				else
+					localPlayer:SetAttribute("AsesinadoPorTorment", true)
+					
+					-- MOSTRAR LOGRO DE MORIR/ENCUENTRO
+					mostrarLogro(ID_LOGRO_MORIR)
+
+					-- JUMPSCARE
+					local sonidoJumpscare = Instance.new("Sound")
+					sonidoJumpscare.SoundId = "rbxassetid://139319051979882"
+					sonidoJumpscare.Volume = 5
+					sonidoJumpscare.Parent = workspace.CurrentCamera
+					sonidoJumpscare:Play()
+					
+					task.wait(0.01)
+					hum.Health = 0
+				end
+			end
+		end
+	end
+end)
+-- ==========================================================
+-- SCRIPT TORMENT - PARTE 2: PARTÍCULAS MASIVAS Y TEMBLOR
+-- ==========================================================
+local CollectionService = game:GetService("CollectionService")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local localPlayer = Players.LocalPlayer
+local Camara = workspace.CurrentCamera
+
+for i = 1, 50 do
+    if _G.B35_Shared and _G.B35_Shared.Entidad then break end
+    task.wait(0.1)
+end
+
+local entidad = _G.B35_Shared and _G.B35_Shared.Entidad
+if not entidad then error("Error: No se enlazó la Parte 1.") end
+
+print("[PARTE 2] Sistema de partículas explosivas y temblor inyectado.")
+
+local function generarParticulasGlitchEnSala(sala)
+    if not sala or not entidad or not entidad.Parent then return end
+    local centroSala = sala:FindFirstChild("RoomStart") or sala:FindFirstChild("Floor") or sala:FindFirstChild("PrimaryPart")
+    if not centroSala or not centroSala:IsA("BasePart") then return end
+    
+    for i = 1, math.random(12, 18) do
+        local offsetAleatorio = Vector3.new(math.random(-25, 25), math.random(0, 10), math.random(-25, 25))
+        local contenedorParticulas = Instance.new("Part")
+        contenedorParticulas.Size = Vector3.new(1, 1, 1)
+        contenedorParticulas.Transparency = 1
+        contenedorParticulas.Anchored = true
+        contenedorParticulas.CanCollide = false
+        contenedorParticulas.Position = centroSala.Position + offsetAleatorio
+        contenedorParticulas.Parent = workspace
+        CollectionService:AddTag(contenedorParticulas, "BasuraEstela")
+        
+        local emisorCirculos = Instance.new("ParticleEmitter")
+        emisorCirculos.Texture = "rbxassetid://6079375253" 
+        emisorCirculos.Color = ColorSequence.new(Color3.fromRGB(170, 0, 255))
+        emisorCirculos.Size = NumberSequence.new({NumberKeypoint.new(0, 0.4), NumberKeypoint.new(1, 0)})
+        emisorCirculos.Rate = 350 
+        emisorCirculos.Speed = NumberRange.new(8, 25)
+        emisorCirculos.Lifetime = NumberRange.new(0.5, 1.2)
+        emisorCirculos.SpreadAngle = Vector2.new(360, 360)
+        emisorCirculos.Parent = contenedorParticulas
+        
+        local emisorCuadrados = Instance.new("ParticleEmitter")
+        emisorCuadrados.Texture = "rbxassetid://258129505" 
+        emisorCuadrados.Color = ColorSequence.new(Color3.fromRGB(120, 0, 255))
+        emisorCuadrados.Size = NumberSequence.new({NumberKeypoint.new(0, 0.5), NumberKeypoint.new(1, 0)})
+        emisorCuadrados.Rate = 350 
+        emisorCuadrados.Speed = NumberRange.new(8, 28)
+        emisorCuadrados.Lifetime = NumberRange.new(0.4, 1.1)
+        emisorCuadrados.SpreadAngle = Vector2.new(360, 360)
+        emisorCuadrados.Parent = contenedorParticulas
+        
+        task.delay(0.35, function()
+            if emisorCirculos then emisorCirculos.Enabled = false end
+            if emisorCuadrados then emisorCuadrados.Enabled = false end
+            task.wait(1.5)
+            if contenedorParticulas then contenedorParticulas:Destroy() end
+        end)
+    end
+end
+
+_G.B35_Shared.SoltarParticulas = generarParticulasGlitchEnSala
+
+local conexionTemblor = RunService.RenderStepped:Connect(function()
+    if not entidad or not entidad.Parent then return end
+    local personaje = localPlayer.Character
+    if personaje and personaje:FindFirstChild("HumanoidRootPart") then
+        local distancia = (entidad.Position - personaje.HumanoidRootPart.Position).Magnitude
+        if distancia < 150 then
+            local fuerzaEfectiva = math.clamp((150 - distancia) / 35, 0.2, 1.5)
+            
+            local offsetAleatorio = Vector3.new(
+                math.random(-50, 50) * 0.007 * fuerzaEfectiva,
+                math.random(-50, 50) * 0.007 * fuerzaEfectiva,
+                math.random(-50, 50) * 0.007 * fuerzaEfectiva
+            )
+            local anguloAleatorio = CFrame.Angles(
+                math.rad(math.random(-25, 25) * 0.015 * fuerzaEfectiva),
+                math.rad(math.random(-25, 25) * 0.015 * fuerzaEfectiva),
+                math.rad(math.random(-25, 25) * 0.015 * fuerzaEfectiva)
+            )
+            
+            Camara.CFrame = Camara:GetRenderCFrame() * CFrame.new(offsetAleatorio) * anguloAleatorio
+        end
+    end
+end)
+
+task.spawn(function()
+    while entidad and entidad.Parent do task.wait(0.2) end
+    if conexionTemblor then conexionTemblor:Disconnect() end
+end)
+-- ==========================================================
+-- SCRIPT TORMENT - PARTE 3: MOVIMIENTO Y LOGRO DE SOBREVIVIR
+-- ==========================================================
+local Players = game:GetService("Players")
+local localPlayer = Players.LocalPlayer
+
+local VELOCIDAD_ULTRA = 430 
+local PASO_TIEMPO = 0.010 
+
+local AUDIO_ADVERTENCIA_1 = "rbxassetid://130563172782113"
+local AUDIO_ADVERTENCIA_2 = "rbxassetid://130563172782113"
+local AUDIO_MOVIMIENTO = "rbxassetid://133605990824702"
+
+local currentRooms = workspace:FindFirstChild("CurrentRooms")
+if not currentRooms then return end
+
+if not _G.B35_Shared or not _G.B35_Shared.Entidad then
+    error("Error: No se detectó el entorno físico de las fases previas.")
+end
+
+local entidad = _G.B35_Shared.Entidad
+
+local function romperLucesDeHabitaciones()
+    for _, sala in ipairs(currentRooms:GetChildren()) do
+        if tonumber(sala.Name) then
+            for _, objeto in ipairs(sala:GetDescendants()) do
+                if objeto:IsA("Light") or objeto:IsA("PointLight") or objeto:IsA("SpotLight") or objeto:IsA("SurfaceLight") then
+                    objeto.Enabled = false 
+                elseif objeto:IsA("BasePart") and (objeto.Name:lower():find("light") or objeto.Name:lower():find("glass") or objeto.Name:lower():find("foco")) then
+                    objeto.Material = Enum.Material.Plastic 
+                    objeto.Color = Color3.fromRGB(40, 40, 40) 
+                end
+            end
+        end
+    end
+end
+
+task.spawn(function()
+    local pGui = localPlayer:WaitForChild("PlayerGui", 5)
+	local contenedorAudio = pGui or workspace.CurrentCamera
+
+	local sonidoAdv1 = Instance.new("Sound")
+	sonidoAdv1.SoundId = AUDIO_ADVERTENCIA_1; sonidoAdv1.Volume = 3; sonidoAdv1.Parent = contenedorAudio; sonidoAdv1:Play()
+	
+	task.delay(1.5, function()
+		local sonidoAdv2 = Instance.new("Sound")
+		sonidoAdv2.SoundId = AUDIO_ADVERTENCIA_2; sonidoAdv2.Volume = 3; sonidoAdv2.Parent = contenedorAudio; sonidoAdv2:Play()
+		task.wait(3.5)
+		if sonidoAdv2 then sonidoAdv2:Destroy() end
+	end)
+
+	task.wait(3.5) 
+
+    local soundMov = Instance.new("Sound")
+    soundMov.SoundId = AUDIO_MOVIMIENTO; soundMov.Volume = 3; soundMov.Looped = true; soundMov.Parent = contenedorAudio; soundMov:Play()
+
+    for pasada = 1, 5 do
+        if not entidad or not entidad.Parent or _G.B35_Shared.Crucificado then break end
+
+        local function moverFisicamenteHacia(posicionDestino, esPuerta)
+            local destinoAjustado = posicionDestino
+            if not esPuerta then
+                destinoAjustado = posicionDestino + Vector3.new(0, 3, 0)
+            end
+            
+            while entidad and entidad.Parent and not _G.B35_Shared.Crucificado do
+                local posicionActual = entidad.Position
+                local vectorDireccion = destinoAjustado - posicionActual
+                local distanciaRestante = vectorDireccion.Magnitude
+                local avancePorFotograma = VELOCIDAD_ULTRA * PASO_TIEMPO
+                
+                if distanciaRestante <= math.max(avancePorFotograma, 3.5) then break end
+                
+                local direccionNormalizada = vectorDireccion.Unit
+                local nuevaPosicion = posicionActual + (direccionNormalizada * avancePorFotograma)
+                
+                local anguloY = _G.B35_Shared and _G.B35_Shared.Angulo or 0
+                local offsetGlitch = _G.B35_Shared and _G.B35_Shared.Offset or Vector3.new(0,0,0)
+                
+                entidad.CFrame = CFrame.lookAt(nuevaPosicion, nuevaPosicion + direccionNormalizada) 
+                                 * CFrame.Angles(0, math.rad(anguloY), 0) 
+                                 * CFrame.new(offsetGlitch)
+                
+                task.wait(PASO_TIEMPO)
+            end
+        end
+
+        local salas = {}
+        for _, obj in ipairs(currentRooms:GetChildren()) do
+            if tonumber(obj.Name) then table.insert(salas, obj) end
+        end
+        
+        if pasada % 2 == 1 then
+            table.sort(salas, function(a, b) return tonumber(a.Name) < tonumber(b.Name) end)
+        else
+            table.sort(salas, function(a, b) return tonumber(a.Name) > tonumber(b.Name) end)
+        end
+        
+        for _, sala in ipairs(salas) do
+            if not entidad or not entidad.Parent or _G.B35_Shared.Crucificado then break end
+            
+            if _G.B35_Shared and _G.B35_Shared.SoltarParticulas then
+                _G.B35_Shared.SoltarParticulas(sala)
+            end
+            
+            local rutaInterna = sala:FindFirstChild("Waypoints") or sala:FindFirstChild("Nodes") or sala:FindFirstChild("Path") or sala:FindFirstChild("Ruta")
+            local nodosExistentes = {}
+            
+            if rutaInterna then
+                for _, nodo in ipairs(rutaInterna:GetChildren()) do 
+                    if nodo:IsA("BasePart") then 
+                        table.insert(nodosExistentes, nodo) 
+                    end 
+                end
+                
+                table.sort(nodosExistentes, function(a, b)
+                    local distA = (entidad.Position - a.Position).Magnitude
+                    local distB = (entidad.Position - b.Position).Magnitude
+                    
+                    if pasada % 2 == 1 then
+                        return distA < distB
+                    else
+                        return distA > distB
+                    end
+                end)
+            end
+            
+            if #nodosExistentes > 0 then
+                for _, nodo in ipairs(nodosExistentes) do 
+                    moverFisicamenteHacia(nodo.Position, false) 
+                end
+            else
+                local centroSala = sala:FindFirstChild("RoomStart") or sala:FindFirstChild("Floor") or sala:FindFirstChild("PrimaryPart")
+                if centroSala and centroSala:IsA("BasePart") then moverFisicamenteHacia(centroSala.Position, false) end
+            end
+            
+            local nodoPuerta = sala:FindFirstChild("Door") or sala:FindFirstChild("DoorPlatform")
+            if nodoPuerta then
+                if nodoPuerta:IsA("Model") then nodoPuerta = nodoPuerta.PrimaryPart or nodoPuerta:FindFirstChild("Door") or nodoPuerta:FindFirstChildOfClass("BasePart") end
+                if nodoPuerta then moverFisicamenteHacia(nodoPuerta.Position, true) end
+            end
+        end
+        
+        task.wait(math.random(15, 28) * 0.1)
+    end
+
+    romperLucesDeHabitaciones()
+
+    soundMov:Destroy()
+    if sonidoAdv1 then sonidoAdv1:Destroy() end
+
+    -- OTORGAR LOGRO DE SOBREVIVIR SI EL JUGADOR SIGUE VIVO Y NO FUE CRUCIFICADO
+    if not _G.B35_Shared.Crucificado then
+        local personaje = localPlayer.Character
+        if personaje and personaje:FindFirstChildOfClass("Humanoid") and personaje:FindFirstChildOfClass("Humanoid").Health > 0 then
+            if _G.B35_Shared.MostrarLogro then
+                _G.B35_Shared.MostrarLogro(_G.B35_Shared.LogroSobrevivir)
+            end
+        end
+    end
+
+    if entidad then entidad:Destroy() end
+    _G.B35_Shared = nil
+    print("[SISTEMA] Torment completó su secuencia.")
+end)
