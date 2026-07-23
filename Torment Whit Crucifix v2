@@ -151,7 +151,7 @@ local function buscarCrucifijo(personaje)
 	return nil
 end
 
--- EJECUTAR EVENTO CRUCIFIJO
+-- EJECUTAR EVENTO CRUCIFIJO (ESTILO RUSH - 8 SEGUNDOS)
 local function crucificarTorment(personaje, crucifijo)
 	_G.B35_Shared.Crucificado = true
 	crucifijo:Destroy()
@@ -179,7 +179,7 @@ local function crucificarTorment(personaje, crucifijo)
 	end
 
 	local circuloSuelo = Instance.new("Part")
-	circuloSuelo.Size = Vector3.new(10, 0.05, 10)
+	circuloSuelo.Size = Vector3.new(12, 0.05, 12)
 	circuloSuelo.Transparency = 1
 	circuloSuelo.Anchored = true
 	circuloSuelo.CanCollide = false
@@ -200,12 +200,12 @@ local function crucificarTorment(personaje, crucifijo)
 
 	for _, angulo in ipairs(angulos) do
 		local cadena = Instance.new("Part")
-		cadena.Size = Vector3.new(1.8, 7, 0.05)
+		cadena.Size = Vector3.new(2, 8, 0.05)
 		cadena.Transparency = 1
 		cadena.Anchored = true
 		cadena.CanCollide = false
 		
-		local offsetSuelo = CFrame.new(posSuelo) * CFrame.Angles(0, math.rad(angulo), 0) * CFrame.new(0, 3, 3)
+		local offsetSuelo = CFrame.new(posSuelo) * CFrame.Angles(0, math.rad(angulo), 0) * CFrame.new(0, 3, 4)
 		cadena.CFrame = CFrame.lookAt(offsetSuelo.Position, entidad.Position) * CFrame.Angles(math.rad(-25), 0, 0)
 		cadena.Parent = modeloCadenas
 
@@ -217,64 +217,40 @@ local function crucificarTorment(personaje, crucifijo)
 		table.insert(listaCadenas, cadena)
 	end
 
-	task.wait(4)
-
-	local posAbajo = CFrame.new(posSuelo - Vector3.new(0, 8, 0))
-	local tweenEntidadBajar = TweenService:Create(
+	-- PASO 1: SUBIR (3.5s)
+	local posArriba = entidad.CFrame * CFrame.new(0, 8, 0)
+	local tweenSubir = TweenService:Create(
 		entidad,
-		TweenInfo.new(2.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
-		{CFrame = posAbajo, Transparency = 1}
+		TweenInfo.new(3.5, Enum.EasingStyle.Sine, Enum.EasingDirection.Out),
+		{CFrame = posArriba}
+	)
+	tweenSubir:Play()
+	task.wait(3.5)
+
+	-- PASO 2: BAJAR Y TRAGAR EN LA TIERRA (4.5s)
+	local posTragado = CFrame.new(posSuelo - Vector3.new(0, 12, 0))
+	local tweenBajar = TweenService:Create(
+		entidad,
+		TweenInfo.new(4.5, Enum.EasingStyle.Back, Enum.EasingDirection.In),
+		{CFrame = posTragado, Transparency = 1}
 	)
 
 	for _, cad in ipairs(listaCadenas) do
 		TweenService:Create(
 			cad,
-			TweenInfo.new(2.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
-			{CFrame = cad.CFrame * CFrame.new(0, -8, 0), Transparency = 1}
+			TweenInfo.new(4.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+			{CFrame = cad.CFrame * CFrame.new(0, -12, 0), Transparency = 1}
 		):Play()
 	end
 
-	tweenEntidadBajar:Play()
-	tweenEntidadBajar.Completed:Wait()
+	tweenBajar:Play()
+	tweenBajar.Completed:Wait()
 
 	circuloSuelo:Destroy()
 	modeloCadenas:Destroy()
 	if entidad then entidad:Destroy() end
 
 	mostrarLogro(ID_LOGRO_CRUCIFIJO)
-end
-
--- ESCANEO ARMARIO
-local function escanearSeguridadArmario(personaje)
-	if not personaje then return false end
-	if personaje:GetAttribute("Hidden") == true or personaje:GetAttribute("IsHidden") == true or personaje:GetAttribute("Hiding") == true then return true end
-	local jugador = Players:GetPlayerFromCharacter(personaje)
-	if jugador and (jugador:GetAttribute("Hidden") == true or jugador:GetAttribute("IsHidden") == true) then return true end
-	local ancestro = personaje.Parent
-	while ancestro and ancestro ~= workspace do
-		local nL = ancestro.Name:lower()
-		if nL:find("closet") or nL:find("wardrobe") or nL:find("bed") or nL:find("hide") or nL:find("armario") then return true end
-		ancestro = ancestro.Parent
-	end
-	if personaje:FindFirstChild("InCloset") or personaje:FindFirstChild("Escondido") or personaje:FindFirstChild("HidingIn") or personaje:FindFirstChild("Hiding") then return true end
-	local rootPart = personaje:FindFirstChild("HumanoidRootPart")
-	local upperTorso = personaje:FindFirstChild("UpperTorso") or personaje:FindFirstChild("Torso")
-	if upperTorso and rootPart and upperTorso.Transparency >= 0.9 and rootPart.Transparency >= 0.9 then return true end
-	if rootPart then
-		for _, sala in ipairs(currentRooms:GetChildren()) do
-			local assets = sala:FindFirstChild("Assets") or sala
-			for _, obj in ipairs(assets:GetChildren()) do
-				local n = obj.Name:lower()
-				if n:find("closet") or n:find("wardrobe") or n:find("bed") then
-					local mainPart = obj.PrimaryPart or obj:FindFirstChild("Hitbox") or obj:FindFirstChild("Main")
-					if mainPart and mainPart:IsA("BasePart") then
-						if (rootPart.Position - mainPart.Position).Magnitude < 4.5 then return true end
-					end
-				end
-			end
-		end
-	end
-	return false
 end
 
 -- DETECCIÓN DE ESQUINAS
@@ -312,22 +288,19 @@ task.spawn(function()
 			if hum.Health <= 0 then continue end
 			if (entidad.Position - personaje.HumanoidRootPart.Position).Magnitude < 22 then
 				
-				-- REVISAR SI EL JUGADOR TIENE UN CRUCIFIJO
 				local crucifijo = buscarCrucifijo(personaje)
 				if crucifijo then
 					crucificarTorment(personaje, crucifijo)
 					break
 				end
 
-				if escanearSeguridadArmario(personaje) or estaEnEsquinaSegura(personaje) then
-					-- Jugador a salvo
+				-- SOLO SOBREVIVE EN LA ESQUINA
+				if estaEnEsquinaSegura(personaje) then
+					-- Jugador a salvo en la esquina
 				else
 					localPlayer:SetAttribute("AsesinadoPorTorment", true)
-					
-					-- MOSTRAR LOGRO DE MORIR/ENCUENTRO
 					mostrarLogro(ID_LOGRO_MORIR)
 
-					-- JUMPSCARE
 					local sonidoJumpscare = Instance.new("Sound")
 					sonidoJumpscare.SoundId = "rbxassetid://139319051979882"
 					sonidoJumpscare.Volume = 5
@@ -436,7 +409,7 @@ task.spawn(function()
     if conexionTemblor then conexionTemblor:Disconnect() end
 end)
 -- ==========================================================
--- SCRIPT TORMENT - PARTE 3: MOVIMIENTO Y LOGRO DE SOBREVIVIR
+-- SCRIPT TORMENT - PARTE 3: MOVIMIENTO (2 PASADAS) Y SOBREVIVIR
 -- ==========================================================
 local Players = game:GetService("Players")
 local localPlayer = Players.LocalPlayer
@@ -491,7 +464,8 @@ task.spawn(function()
     local soundMov = Instance.new("Sound")
     soundMov.SoundId = AUDIO_MOVIMIENTO; soundMov.Volume = 3; soundMov.Looped = true; soundMov.Parent = contenedorAudio; soundMov:Play()
 
-    for pasada = 1, 5 do
+    -- EXACTAMENTE 2 PASADAS
+    for pasada = 1, 2 do
         if not entidad or not entidad.Parent or _G.B35_Shared.Crucificado then break end
 
         local function moverFisicamenteHacia(posicionDestino, esPuerta)
@@ -586,7 +560,7 @@ task.spawn(function()
     soundMov:Destroy()
     if sonidoAdv1 then sonidoAdv1:Destroy() end
 
-    -- OTORGAR LOGRO DE SOBREVIVIR SI EL JUGADOR SIGUE VIVO Y NO FUE CRUCIFICADO
+    -- LOGRO DE SOBREVIVIR
     if not _G.B35_Shared.Crucificado then
         local personaje = localPlayer.Character
         if personaje and personaje:FindFirstChildOfClass("Humanoid") and personaje:FindFirstChildOfClass("Humanoid").Health > 0 then
@@ -598,5 +572,5 @@ task.spawn(function()
 
     if entidad then entidad:Destroy() end
     _G.B35_Shared = nil
-    print("[SISTEMA] Torment completó su secuencia.")
+    print("[SISTEMA] Torment completó sus 2 pasadas.")
 end)
