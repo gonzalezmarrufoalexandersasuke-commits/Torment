@@ -1,5 +1,5 @@
 -- ==========================================================
--- SCRIPT TORMENT - PARTE 1: CORE, LUZ MORADA Y LOGROS
+-- SCRIPT TORMENT - PARTE 1: CORE, LUZ MORADA, CRUCIFIJO Y LOGROS
 -- ==========================================================
 local Players = game:GetService("Players")
 local CollectionService = game:GetService("CollectionService")
@@ -57,7 +57,7 @@ decalFrente.Texture = TEXTURA_ID; decalFrente.Face = Enum.NormalId.Front; decalF
 local decalAtras = Instance.new("Decal")
 decalAtras.Texture = TEXTURA_ID; decalAtras.Face = Enum.NormalId.Back; decalAtras.Parent = entidad
 
-print("[PARTE 1] Torment cargado correctamente con Luz Morada.")
+print("[PARTE 1] Torment cargado correctamente.")
 
 -- SISTEMA DE LOGROS EN PANTALLA
 local function mostrarLogro(imagenId)
@@ -151,7 +151,7 @@ local function buscarCrucifijo(personaje)
 	return nil
 end
 
--- EJECUTAR EVENTO CRUCIFIJO (ESTILO RUSH - 8 SEGUNDOS)
+-- EJECUTAR EVENTO CRUCIFIJO (COMPLETO DE 8 SEGUNDOS)
 local function crucificarTorment(personaje, crucifijo)
 	_G.B35_Shared.Crucificado = true
 	crucifijo:Destroy()
@@ -217,8 +217,8 @@ local function crucificarTorment(personaje, crucifijo)
 		table.insert(listaCadenas, cadena)
 	end
 
-	-- PASO 1: SUBIR (3.5s)
-	local posArriba = entidad.CFrame * CFrame.new(0, 8, 0)
+	-- PASO 1: SUBE (3.5s)
+	local posArriba = entidad.CFrame * CFrame.new(0, 10, 0)
 	local tweenSubir = TweenService:Create(
 		entidad,
 		TweenInfo.new(3.5, Enum.EasingStyle.Sine, Enum.EasingDirection.Out),
@@ -227,11 +227,11 @@ local function crucificarTorment(personaje, crucifijo)
 	tweenSubir:Play()
 	task.wait(3.5)
 
-	-- PASO 2: BAJAR Y TRAGAR EN LA TIERRA (4.5s)
-	local posTragado = CFrame.new(posSuelo - Vector3.new(0, 12, 0))
+	-- PASO 2: BAJA Y SE HUNDE (4.5s)
+	local posTragado = CFrame.new(posSuelo - Vector3.new(0, 15, 0))
 	local tweenBajar = TweenService:Create(
 		entidad,
-		TweenInfo.new(4.5, Enum.EasingStyle.Back, Enum.EasingDirection.In),
+		TweenInfo.new(4.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
 		{CFrame = posTragado, Transparency = 1}
 	)
 
@@ -239,13 +239,14 @@ local function crucificarTorment(personaje, crucifijo)
 		TweenService:Create(
 			cad,
 			TweenInfo.new(4.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
-			{CFrame = cad.CFrame * CFrame.new(0, -12, 0), Transparency = 1}
+			{CFrame = cad.CFrame * CFrame.new(0, -15, 0), Transparency = 1}
 		):Play()
 	end
 
 	tweenBajar:Play()
 	tweenBajar.Completed:Wait()
 
+	-- LIMPIEZA Y LOGRO DE CRUCIFIJO
 	circuloSuelo:Destroy()
 	modeloCadenas:Destroy()
 	if entidad then entidad:Destroy() end
@@ -253,24 +254,55 @@ local function crucificarTorment(personaje, crucifijo)
 	mostrarLogro(ID_LOGRO_CRUCIFIJO)
 end
 
--- DETECCIÓN DE ESQUINAS
+-- DETECTAR JUGADOR AGACHADO
+local function estaAgachado(personaje)
+	if not personaje then return false end
+	local hum = personaje:FindFirstChildOfClass("Humanoid")
+	if hum then
+		if hum.Crouch or hum:GetAttribute("Crouching") == true or hum.HipHeight < 1.5 then
+			return true
+		end
+	end
+	if personaje:GetAttribute("Crouching") == true or localPlayer:GetAttribute("Crouching") == true then
+		return true
+	end
+	return false
+end
+
+-- DETECCIÓN EN ESQUINAS Y HABITACIONES PEQUEÑAS
 local function estaEnEsquinaSegura(personaje)
     if not personaje or not personaje:FindFirstChild("HumanoidRootPart") then return false end
-    local pos = personaje.HumanoidRootPart.Position
+    local rootPart = personaje.HumanoidRootPart
+    local pos = rootPart.Position
     
     for _, sala in ipairs(currentRooms:GetChildren()) do
         local centroSala = sala:FindFirstChild("RoomStart") or sala:FindFirstChild("Floor") or sala:FindFirstChild("PrimaryPart")
         if centroSala and centroSala:IsA("BasePart") then
             local distCentro = (pos - centroSala.Position).Magnitude
-            if distCentro < 45 then
+            if distCentro < 50 then
                 local tamanoPiso = centroSala.Size
                 local posRelativa = centroSala.CFrame:PointToObjectSpace(pos)
                 
-                local limiteX = (tamanoPiso.X / 2) - 3.5
-                local limiteZ = (tamanoPiso.Z / 2) - 3.5
+                local limiteX = math.max((tamanoPiso.X / 2) - 2.5, 1)
+                local limiteZ = math.max((tamanoPiso.Z / 2) - 2.5, 1)
                 
-                if math.abs(posRelativa.X) >= limiteX and math.abs(posRelativa.Z) >= limiteZ then
+                local estaEnEsquina = math.abs(posRelativa.X) >= limiteX and math.abs(posRelativa.Z) >= limiteZ
+                
+                if estaEnEsquina and estaAgachado(personaje) then
                     return true
+                end
+                
+                if entidad and entidad.Parent then
+                    local rayParams = RaycastParams.new()
+                    rayParams.FilterType = Enum.RaycastFilterType.Exclude
+                    rayParams.FilterDescendantsInstances = {entidad, personaje}
+                    
+                    local resultado = Workspace:Raycast(entidad.Position, (pos - entidad.Position), rayParams)
+                    if resultado and resultado.Instance and resultado.Instance.CanCollide then
+                        if estaAgachado(personaje) then
+                            return true
+                        end
+                    end
                 end
             end
         end
@@ -278,7 +310,7 @@ local function estaEnEsquinaSegura(personaje)
     return false
 end
 
--- BUCLE PRINCIPAL DE DAÑO Y CRUCIFIJO
+-- BUCLE PRINCIPAL DE DAÑO
 task.spawn(function()
 	while task.wait(0.03) do
 		if not entidad or not entidad.Parent or _G.B35_Shared.Crucificado then break end
@@ -286,7 +318,13 @@ task.spawn(function()
 		if personaje and personaje:FindFirstChild("HumanoidRootPart") and personaje:FindFirstChildOfClass("Humanoid") then
 			local hum = personaje:FindFirstChildOfClass("Humanoid")
 			if hum.Health <= 0 then continue end
-			if (entidad.Position - personaje.HumanoidRootPart.Position).Magnitude < 22 then
+
+			local distanciaDeteccion = 18
+			if estaAgachado(personaje) then
+				distanciaDeteccion = 10
+			end
+
+			if (entidad.Position - personaje.HumanoidRootPart.Position).Magnitude < distanciaDeteccion then
 				
 				local crucifijo = buscarCrucifijo(personaje)
 				if crucifijo then
@@ -294,9 +332,8 @@ task.spawn(function()
 					break
 				end
 
-				-- SOLO SOBREVIVE EN LA ESQUINA
 				if estaEnEsquinaSegura(personaje) then
-					-- Jugador a salvo en la esquina
+					-- Protegido
 				else
 					localPlayer:SetAttribute("AsesinadoPorTorment", true)
 					mostrarLogro(ID_LOGRO_MORIR)
